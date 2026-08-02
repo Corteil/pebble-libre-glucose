@@ -1,0 +1,52 @@
+{
+  "name": "pebble-libre-glucose",
+  "author": "Brian Corteil",
+  "version": "1.0.0",
+  "keywords": [
+    "pebble-app"
+  ],
+  "private": true,
+  "dependencies": {
+    "pebble-clay": "^1.0.4"
+  },
+  "pebble": {
+    "displayName": "Libre Glucose",
+    "uuid": "c41f49f7-1c12-4cc0-940a-6aa32d7c54ee",
+    "sdkVersion": "3",
+    "enableMultiJS": true,
+    "targetPlatforms": [
+      "aplite",
+      "basalt",
+      "diorite",
+      "chalk"
+    ],
+    "watchapp": {
+      "watchface": true
+    },
+    "capabilities": [
+      "configurable"
+    ],
+    "messageKeys": [
+      "STATUS",
+      "GLUCOSE_MGDL",
+      "TREND",
+      "DELTA_MGDL",
+      "READING_TS",
+      "UNITS_MMOL",
+      "LOW_MGDL",
+      "HIGH_MGDL",
+      "ALERT_LOW",
+      "ALERT_HIGH",
+      "GRAPH_START_TS",
+      "GRAPH_INTERVAL",
+      "GRAPH_DATA",
+      "EMAIL",
+      "PASSWORD",
+      "REGION",
+      "REFRESH"
+    ],
+    "resources": {
+      "media": []
+    }
+  }
+}
