@@ -425,7 +425,9 @@ Pebble.addEventListener('webviewclosed', function(e) {
   if (!e || !e.response) {
     return;
   }
-  var dict = clay.getSettings(e.response);
+  // Raw (name-keyed) settings; the default converted form is keyed by
+  // numeric message-key IDs, which applyClaySettings can't look up.
+  var dict = clay.getSettings(e.response, false);
   applyClaySettings(dict);
   // Credentials or region may have changed - start from a clean login
   clearAuth();
