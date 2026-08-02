@@ -24,8 +24,8 @@ var STATUS_ACCEPT_TERMS = 5;
 var GRAPH_POINTS = 48;
 var GRAPH_INTERVAL = 900; // 15 min buckets -> 12 hours
 
-var LLU_VERSION = '4.12.0';
-var LLU_PRODUCT = 'llu/android';
+var LLU_VERSION = '4.16.0';
+var LLU_PRODUCT = 'llu.android';
 
 var s_timer = null;
 var s_fetching = false;
