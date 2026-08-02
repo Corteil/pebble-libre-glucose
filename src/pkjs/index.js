@@ -103,6 +103,12 @@ function applyClaySettings(dict) {
 // ---------------------------------------------------------------- HTTP
 
 function baseUrl(region) {
+  // Whitelist the region fragment: it is spliced into the hostname, so a
+  // hostile value (e.g. "x.evil.com/") must never redirect credentials
+  // away from *.libreview.io.
+  if (!/^[a-z0-9-]{1,12}$/i.test(region || '')) {
+    region = '';
+  }
   return 'https://api' + (region ? '-' + region : '') + '.libreview.io';
 }
 

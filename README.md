@@ -4,6 +4,8 @@ A Pebble watchface that shows your current **FreeStyle Libre** glucose
 reading, trend arrow, change since the last reading and a 12‑hour history
 graph — alongside the time and date.
 
+<img src="assets/preview-basalt.png" width="144" alt="Watchface preview (Pebble Time)">
+
 Data comes from Abbott's **LibreLinkUp** (follower) API via your phone, so
 it works with Libre 2 / Libre 3 sensors that upload to LibreView through the
 patient's LibreLink app. No extra hardware or third‑party uploader needed.
@@ -82,8 +84,28 @@ pebble install --emulator basalt
   configuration page (credentials, region, units, thresholds, alerts,
   refresh interval).
 
-Credentials are stored only in the Pebble phone app's local storage and are
-sent only to Abbott's LibreView servers.
+## Privacy & security
+
+* Your LibreLinkUp email and password are stored **in plain text** in the
+  Pebble phone app's local storage on your phone (the LibreLinkUp API only
+  supports password login, so the app must keep the password to re-login
+  when the session expires). They never leave the phone except over HTTPS
+  to Abbott's LibreView servers, and are never sent to the watch.
+* The API hostname is validated so a malformed server response cannot
+  redirect credentials to a third-party host.
+* Consider using a dedicated LibreLinkUp follower account with its own
+  password rather than reusing a password from another account.
+* The watch itself only ever stores glucose values and thresholds — no
+  credentials.
+
+## Publishing / installing for others
+
+Build with `pebble build` and share the `.pbw` from `build/`, or publish
+through the [Rebble developer portal](https://dev-portal.rebble.io/):
+create the app listing, upload the `.pbw`, and add screenshots for each
+platform (capture real ones with `pebble screenshot --emulator basalt`
+etc.). The preview image in `assets/` is a rendered mock-up of the basalt
+layout; store listings should use real captures.
 
 ## Notes & limitations
 

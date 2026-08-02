@@ -2,6 +2,7 @@
   "name": "pebble-libre-glucose",
   "author": "Brian Corteil",
   "version": "1.0.0",
+  "license": "MIT",
   "keywords": [
     "pebble-app"
   ],
