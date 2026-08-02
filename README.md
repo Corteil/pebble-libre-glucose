@@ -102,10 +102,15 @@ pebble install --emulator basalt
 
 Build with `pebble build` and share the `.pbw` from `build/`, or publish
 through the [Rebble developer portal](https://dev-portal.rebble.io/):
-create the app listing, upload the `.pbw`, and add screenshots for each
-platform (capture real ones with `pebble screenshot --emulator basalt`
-etc.). The preview image in `assets/` is a rendered mock-up of the basalt
-layout; store listings should use real captures.
+create the app listing, upload the `.pbw`, and add a screenshot for each
+platform. The screenshot doubles as the watchface tile shown in the
+phone app's watchface list, so it is worth getting right.
+
+Ready-to-upload images in the native store sizes are in `assets/store/`
+(144x168 for aplite/basalt/diorite, 180x180 for chalk), rendered from the
+layout in `main.c` by `assets/generate_previews.py`. They are mock-ups —
+real captures via `pebble screenshot --emulator basalt` (etc.) are better
+still, and drop-in replacements.
 
 ## Notes & limitations
 
