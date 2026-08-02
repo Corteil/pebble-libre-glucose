@@ -38,6 +38,7 @@
       "HIGH_MGDL",
       "ALERT_LOW",
       "ALERT_HIGH",
+      "THEME_LIGHT",
       "GRAPH_START_TS",
       "GRAPH_INTERVAL",
       "GRAPH_DATA",

@@ -90,6 +90,7 @@ function applyClaySettings(dict) {
     password: val('PASSWORD') || '',
     region: val('REGION') || '',
     unitsMmol: unitsMmol,
+    themeLight: String(val('THEME_LIGHT')) === '1',
     lowMgdl: threshold('LOW_MGDL', 72),
     highMgdl: threshold('HIGH_MGDL', 180),
     alertLow: !!+val('ALERT_LOW'),
@@ -346,6 +347,7 @@ function sendData(settings, data) {
     DELTA_MGDL: delta,
     READING_TS: readingTs,
     UNITS_MMOL: settings.unitsMmol ? 1 : 0,
+    THEME_LIGHT: settings.themeLight ? 1 : 0,
     LOW_MGDL: settings.lowMgdl,
     HIGH_MGDL: settings.highMgdl,
     ALERT_LOW: settings.alertLow ? 1 : 0,
@@ -434,7 +436,17 @@ Pebble.addEventListener('webviewclosed', function(e) {
   // Raw (name-keyed) settings; the default converted form is keyed by
   // numeric message-key IDs, which applyClaySettings can't look up.
   var dict = clay.getSettings(e.response, false);
-  applyClaySettings(dict);
+  var settings = applyClaySettings(dict);
+  // Apply display preferences immediately; fresh data follows when the
+  // next fetch completes
+  sendToWatch({
+    UNITS_MMOL: settings.unitsMmol ? 1 : 0,
+    THEME_LIGHT: settings.themeLight ? 1 : 0,
+    LOW_MGDL: settings.lowMgdl,
+    HIGH_MGDL: settings.highMgdl,
+    ALERT_LOW: settings.alertLow ? 1 : 0,
+    ALERT_HIGH: settings.alertHigh ? 1 : 0
+  }, 'display prefs');
   // Credentials or region may have changed - start from a clean login
   clearAuth();
   refresh();

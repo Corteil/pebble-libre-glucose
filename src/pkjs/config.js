@@ -82,6 +82,16 @@ module.exports = [
         ]
       },
       {
+        type: 'select',
+        messageKey: 'THEME_LIGHT',
+        label: 'Theme',
+        defaultValue: '0',
+        options: [
+          { label: 'Dark', value: '0' },
+          { label: 'Light', value: '1' }
+        ]
+      },
+      {
         type: 'input',
         messageKey: 'LOW_MGDL',
         label: 'Low threshold (in your units)',
