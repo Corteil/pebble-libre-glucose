@@ -26,6 +26,7 @@ patient's LibreLink app. No extra hardware or third‑party uploader needed.
 * Colour-coded reading: green in range, red below the low threshold,
   yellow above the high threshold (colour Pebbles).
 * mmol/L or mg/dL, configurable low/high thresholds.
+* Dark (default) or light theme.
 * Optional vibration alert when crossing low (double pulse) or high
   (single pulse).
 * Reading age indicator; the value dims when data is stale (>15 min).

@@ -4,7 +4,7 @@
 #define GRAPH_POINTS 48
 
 #define PERSIST_KEY_STATE 1
-#define STATE_VERSION 1
+#define STATE_VERSION 2
 
 // Status codes sent by the phone-side JS
 enum {
@@ -28,6 +28,7 @@ typedef struct __attribute__((packed)) {
   uint8_t status;
   uint8_t alert_low;
   uint8_t alert_high;
+  uint8_t theme_light;   // 0 = dark (default), 1 = light
   uint16_t low_mgdl;     // low threshold
   uint16_t high_mgdl;    // high threshold
   int32_t reading_ts;    // epoch of current reading
@@ -51,21 +52,48 @@ static char s_date_buf[16];
 static char s_glucose_buf[8];
 static char s_info_buf[40];
 
+static GColor theme_bg(void) {
+  return s_state.theme_light ? GColorWhite : GColorBlack;
+}
+
+static GColor theme_fg(void) {
+  return s_state.theme_light ? GColorBlack : GColorWhite;
+}
+
+// Dimmed foreground for stale/missing data
+static GColor theme_dim(void) {
+#if defined(PBL_COLOR)
+  return s_state.theme_light ? GColorDarkGray : GColorLightGray;
+#else
+  return theme_fg();
+#endif
+}
+
+// Threshold guide lines on the graph
+static GColor theme_guide(void) {
+#if defined(PBL_COLOR)
+  return s_state.theme_light ? GColorLightGray : GColorDarkGray;
+#else
+  return theme_fg();
+#endif
+}
+
 static GColor glucose_color(int mgdl) {
 #if defined(PBL_COLOR)
   if (mgdl <= 0) {
-    return GColorLightGray;
+    return theme_dim();
   }
+  // Light theme needs darker shades to stay readable on white
   if (mgdl < s_state.low_mgdl) {
-    return GColorRed;
+    return s_state.theme_light ? GColorDarkCandyAppleRed : GColorRed;
   }
   if (mgdl > s_state.high_mgdl) {
-    return GColorChromeYellow;
+    return s_state.theme_light ? GColorWindsorTan : GColorChromeYellow;
   }
-  return GColorGreen;
+  return s_state.theme_light ? GColorIslamicGreen : GColorGreen;
 #else
   (void)mgdl;
-  return GColorWhite;
+  return theme_fg();
 #endif
 }
 
@@ -137,13 +165,22 @@ static void update_info_text(void) {
   text_layer_set_text(s_info_layer, s_info_buf);
 }
 
+// Repaint everything whose color depends on the theme. Safe to call any
+// time after window_load; glucose/trend/graph colors are handled by
+// update_glucose_ui and the layer update procs.
+static void apply_theme(void) {
+  window_set_background_color(s_window, theme_bg());
+  text_layer_set_text_color(s_time_layer, theme_fg());
+  text_layer_set_text_color(s_date_layer, theme_fg());
+  text_layer_set_text_color(s_info_layer, theme_fg());
+}
+
 static void update_glucose_ui(void) {
   format_glucose(s_glucose_buf, sizeof(s_glucose_buf), s_state.mgdl);
   text_layer_set_text(s_glucose_layer, s_glucose_buf);
   text_layer_set_text_color(
       s_glucose_layer,
-      reading_is_stale() ? PBL_IF_COLOR_ELSE(GColorLightGray, GColorWhite)
-                         : glucose_color(s_state.mgdl));
+      reading_is_stale() ? theme_dim() : glucose_color(s_state.mgdl));
   layer_mark_dirty(s_trend_layer);
   layer_mark_dirty(s_graph_layer);
   update_info_text();
@@ -182,9 +219,8 @@ static void trend_update_proc(Layer *layer, GContext *ctx) {
   GPoint tail = GPoint(c.x - dx[t] * len, c.y - dy[t] * len);
   GPoint tip = GPoint(c.x + dx[t] * len, c.y + dy[t] * len);
 
-  GColor color = reading_is_stale()
-                     ? PBL_IF_COLOR_ELSE(GColorLightGray, GColorWhite)
-                     : glucose_color(s_state.mgdl);
+  GColor color =
+      reading_is_stale() ? theme_dim() : glucose_color(s_state.mgdl);
   graphics_context_set_stroke_color(ctx, color);
   graphics_context_set_stroke_width(ctx, 3);
   graphics_draw_line(ctx, tail, tip);
@@ -239,8 +275,7 @@ static void graph_update_proc(Layer *layer, GContext *ctx) {
 
   // Threshold guide lines
   graphics_context_set_stroke_width(ctx, 1);
-  graphics_context_set_stroke_color(
-      ctx, PBL_IF_COLOR_ELSE(GColorDarkGray, GColorWhite));
+  graphics_context_set_stroke_color(ctx, theme_guide());
   draw_dashed_hline(ctx, mgdl_to_y(s_state.low_mgdl, display_max, b), b);
   draw_dashed_hline(ctx, mgdl_to_y(s_state.high_mgdl, display_max, b), b);
 
@@ -317,6 +352,9 @@ static void inbox_received_handler(DictionaryIterator *iter, void *context) {
   if ((t = dict_find(iter, MESSAGE_KEY_ALERT_HIGH))) {
     s_state.alert_high = t->value->int32 ? 1 : 0;
   }
+  if ((t = dict_find(iter, MESSAGE_KEY_THEME_LIGHT))) {
+    s_state.theme_light = t->value->int32 ? 1 : 0;
+  }
   if ((t = dict_find(iter, MESSAGE_KEY_GRAPH_START_TS))) {
     s_state.graph_start = t->value->int32;
   }
@@ -334,6 +372,7 @@ static void inbox_received_handler(DictionaryIterator *iter, void *context) {
 
   s_state.version = STATE_VERSION;
   persist_write_data(PERSIST_KEY_STATE, &s_state, sizeof(s_state));
+  apply_theme();
   update_glucose_ui();
   maybe_alert(prev_mgdl);
 }
@@ -392,6 +431,7 @@ static void window_load(Window *window) {
   layer_add_child(root, text_layer_get_layer(s_info_layer));
   layer_add_child(root, s_graph_layer);
 
+  apply_theme();
   update_time();
   update_glucose_ui();
 }
@@ -426,7 +466,7 @@ static void init(void) {
   load_state();
 
   s_window = window_create();
-  window_set_background_color(s_window, GColorBlack);
+  window_set_background_color(s_window, theme_bg());
   window_set_window_handlers(s_window, (WindowHandlers){
                                            .load = window_load,
                                            .unload = window_unload,
