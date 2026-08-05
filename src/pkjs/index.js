@@ -93,6 +93,11 @@ function applyClaySettings(dict) {
     themeLight: String(val('THEME_LIGHT')) === '1',
     lowMgdl: threshold('LOW_MGDL', 72),
     highMgdl: threshold('HIGH_MGDL', 180),
+    nightEnabled: !!+val('NIGHT_ENABLED'),
+    nightStartHour: parseInt(val('NIGHT_START'), 10) || 0,
+    nightEndHour: parseInt(val('NIGHT_END'), 10) || 0,
+    nightLowMgdl: threshold('NIGHT_LOW', 72),
+    nightHighMgdl: threshold('NIGHT_HIGH', 180),
     alertLow: !!+val('ALERT_LOW'),
     alertHigh: !!+val('ALERT_HIGH'),
     refreshMin: parseInt(val('REFRESH'), 10) || 5
@@ -276,6 +281,18 @@ function sendToWatch(dict, label) {
   });
 }
 
+// Night-threshold keys shared by both send paths. Settings saved before
+// this feature existed have no night fields; fall back to the day values.
+function nightDict(settings) {
+  return {
+    NIGHT_ENABLED: settings.nightEnabled ? 1 : 0,
+    NIGHT_START_MIN: (settings.nightStartHour || 0) * 60,
+    NIGHT_END_MIN: (settings.nightEndHour || 0) * 60,
+    NIGHT_LOW_MGDL: settings.nightLowMgdl || settings.lowMgdl || 72,
+    NIGHT_HIGH_MGDL: settings.nightHighMgdl || settings.highMgdl || 180
+  };
+}
+
 function sendStatus(code) {
   // Don't wipe out a recent good reading with a transient network error
   if (code === STATUS_NETWORK_ERROR) {
@@ -340,7 +357,7 @@ function sendData(settings, data) {
 
   localStorage.setItem('lg_last_ok', String(Date.now()));
 
-  sendToWatch({
+  var dict = {
     STATUS: STATUS_OK,
     GLUCOSE_MGDL: current,
     TREND: trend,
@@ -355,7 +372,12 @@ function sendData(settings, data) {
     GRAPH_START_TS: start,
     GRAPH_INTERVAL: GRAPH_INTERVAL,
     GRAPH_DATA: graph
-  }, 'glucose ' + current);
+  };
+  var night = nightDict(settings);
+  for (var k in night) {
+    dict[k] = night[k];
+  }
+  sendToWatch(dict, 'glucose ' + current);
 }
 
 // ---------------------------------------------------------------- main flow
@@ -439,14 +461,19 @@ Pebble.addEventListener('webviewclosed', function(e) {
   var settings = applyClaySettings(dict);
   // Apply display preferences immediately; fresh data follows when the
   // next fetch completes
-  sendToWatch({
+  var prefs = {
     UNITS_MMOL: settings.unitsMmol ? 1 : 0,
     THEME_LIGHT: settings.themeLight ? 1 : 0,
     LOW_MGDL: settings.lowMgdl,
     HIGH_MGDL: settings.highMgdl,
     ALERT_LOW: settings.alertLow ? 1 : 0,
     ALERT_HIGH: settings.alertHigh ? 1 : 0
-  }, 'display prefs');
+  };
+  var night = nightDict(settings);
+  for (var k in night) {
+    prefs[k] = night[k];
+  }
+  sendToWatch(prefs, 'display prefs');
   // Credentials or region may have changed - start from a clean login
   clearAuth();
   refresh();

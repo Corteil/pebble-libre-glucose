@@ -128,6 +128,75 @@ module.exports = [
     items: [
       {
         type: 'heading',
+        defaultValue: 'Night thresholds'
+      },
+      {
+        type: 'text',
+        defaultValue: 'Use different thresholds during a set period, e.g. ' +
+          'drop the low alarm to 4.0 after midnight. Colours, graph lines ' +
+          'and alerts all follow the active thresholds.'
+      },
+      {
+        type: 'toggle',
+        messageKey: 'NIGHT_ENABLED',
+        label: 'Enable night thresholds',
+        defaultValue: false
+      },
+      {
+        type: 'select',
+        messageKey: 'NIGHT_START',
+        label: 'Night starts',
+        defaultValue: '0',
+        options: [
+          { label: '20:00', value: '20' },
+          { label: '21:00', value: '21' },
+          { label: '22:00', value: '22' },
+          { label: '23:00', value: '23' },
+          { label: 'Midnight', value: '0' },
+          { label: '01:00', value: '1' },
+          { label: '02:00', value: '2' }
+        ]
+      },
+      {
+        type: 'select',
+        messageKey: 'NIGHT_END',
+        label: 'Night ends',
+        defaultValue: '7',
+        options: [
+          { label: '04:00', value: '4' },
+          { label: '05:00', value: '5' },
+          { label: '06:00', value: '6' },
+          { label: '07:00', value: '7' },
+          { label: '08:00', value: '8' },
+          { label: '09:00', value: '9' },
+          { label: '10:00', value: '10' }
+        ]
+      },
+      {
+        type: 'input',
+        messageKey: 'NIGHT_LOW',
+        label: 'Night low threshold (in your units)',
+        defaultValue: '4.0',
+        attributes: {
+          type: 'text'
+        }
+      },
+      {
+        type: 'input',
+        messageKey: 'NIGHT_HIGH',
+        label: 'Night high threshold (in your units)',
+        defaultValue: '10.0',
+        attributes: {
+          type: 'text'
+        }
+      }
+    ]
+  },
+  {
+    type: 'section',
+    items: [
+      {
+        type: 'heading',
         defaultValue: 'Alerts'
       },
       {

@@ -4,7 +4,7 @@
 #define GRAPH_POINTS 48
 
 #define PERSIST_KEY_STATE 1
-#define STATE_VERSION 2
+#define STATE_VERSION 3
 
 // Status codes sent by the phone-side JS
 enum {
@@ -31,6 +31,11 @@ typedef struct __attribute__((packed)) {
   uint8_t theme_light;   // 0 = dark (default), 1 = light
   uint16_t low_mgdl;     // low threshold
   uint16_t high_mgdl;    // high threshold
+  uint8_t night_enabled;    // use separate thresholds during the night window
+  uint16_t night_start_min; // window start, minutes since local midnight
+  uint16_t night_end_min;   // window end, minutes since local midnight
+  uint16_t night_low_mgdl;
+  uint16_t night_high_mgdl;
   int32_t reading_ts;    // epoch of current reading
   int32_t graph_start;   // epoch of graph[0]
   int32_t graph_interval;
@@ -78,16 +83,41 @@ static GColor theme_guide(void) {
 #endif
 }
 
+// True while the local time is inside the configured night window. The
+// window may wrap past midnight (e.g. 22:00-07:00); start == end means
+// a zero-length window, i.e. never active.
+static bool night_window_active(void) {
+  if (!s_state.night_enabled ||
+      s_state.night_start_min == s_state.night_end_min) {
+    return false;
+  }
+  time_t now = time(NULL);
+  struct tm *t = localtime(&now);
+  int m = t->tm_hour * 60 + t->tm_min;
+  if (s_state.night_start_min < s_state.night_end_min) {
+    return m >= s_state.night_start_min && m < s_state.night_end_min;
+  }
+  return m >= s_state.night_start_min || m < s_state.night_end_min;
+}
+
+static int active_low_mgdl(void) {
+  return night_window_active() ? s_state.night_low_mgdl : s_state.low_mgdl;
+}
+
+static int active_high_mgdl(void) {
+  return night_window_active() ? s_state.night_high_mgdl : s_state.high_mgdl;
+}
+
 static GColor glucose_color(int mgdl) {
 #if defined(PBL_COLOR)
   if (mgdl <= 0) {
     return theme_dim();
   }
   // Light theme needs darker shades to stay readable on white
-  if (mgdl < s_state.low_mgdl) {
+  if (mgdl < active_low_mgdl()) {
     return s_state.theme_light ? GColorDarkCandyAppleRed : GColorRed;
   }
-  if (mgdl > s_state.high_mgdl) {
+  if (mgdl > active_high_mgdl()) {
     return s_state.theme_light ? GColorWindsorTan : GColorChromeYellow;
   }
   return s_state.theme_light ? GColorIslamicGreen : GColorGreen;
@@ -276,8 +306,8 @@ static void graph_update_proc(Layer *layer, GContext *ctx) {
   // Threshold guide lines
   graphics_context_set_stroke_width(ctx, 1);
   graphics_context_set_stroke_color(ctx, theme_guide());
-  draw_dashed_hline(ctx, mgdl_to_y(s_state.low_mgdl, display_max, b), b);
-  draw_dashed_hline(ctx, mgdl_to_y(s_state.high_mgdl, display_max, b), b);
+  draw_dashed_hline(ctx, mgdl_to_y(active_low_mgdl(), display_max, b), b);
+  draw_dashed_hline(ctx, mgdl_to_y(active_high_mgdl(), display_max, b), b);
 
   // Data points, joined where consecutive
   int prev_x = -1, prev_y = 0;
@@ -309,11 +339,13 @@ static void maybe_alert(int prev_mgdl) {
   if (s_state.mgdl <= 0 || prev_mgdl == s_state.mgdl) {
     return;
   }
-  if (s_state.alert_low && s_state.mgdl < s_state.low_mgdl &&
-      (prev_mgdl <= 0 || prev_mgdl >= (int)s_state.low_mgdl)) {
+  int low = active_low_mgdl();
+  int high = active_high_mgdl();
+  if (s_state.alert_low && s_state.mgdl < low &&
+      (prev_mgdl <= 0 || prev_mgdl >= low)) {
     vibes_double_pulse();
-  } else if (s_state.alert_high && s_state.mgdl > s_state.high_mgdl &&
-             prev_mgdl > 0 && prev_mgdl <= (int)s_state.high_mgdl) {
+  } else if (s_state.alert_high && s_state.mgdl > high &&
+             prev_mgdl > 0 && prev_mgdl <= high) {
     vibes_short_pulse();
   }
 }
@@ -345,6 +377,21 @@ static void inbox_received_handler(DictionaryIterator *iter, void *context) {
   }
   if ((t = dict_find(iter, MESSAGE_KEY_HIGH_MGDL))) {
     s_state.high_mgdl = t->value->int32;
+  }
+  if ((t = dict_find(iter, MESSAGE_KEY_NIGHT_ENABLED))) {
+    s_state.night_enabled = t->value->int32 ? 1 : 0;
+  }
+  if ((t = dict_find(iter, MESSAGE_KEY_NIGHT_START_MIN))) {
+    s_state.night_start_min = t->value->int32;
+  }
+  if ((t = dict_find(iter, MESSAGE_KEY_NIGHT_END_MIN))) {
+    s_state.night_end_min = t->value->int32;
+  }
+  if ((t = dict_find(iter, MESSAGE_KEY_NIGHT_LOW_MGDL))) {
+    s_state.night_low_mgdl = t->value->int32;
+  }
+  if ((t = dict_find(iter, MESSAGE_KEY_NIGHT_HIGH_MGDL))) {
+    s_state.night_high_mgdl = t->value->int32;
   }
   if ((t = dict_find(iter, MESSAGE_KEY_ALERT_LOW))) {
     s_state.alert_low = t->value->int32 ? 1 : 0;
@@ -381,10 +428,9 @@ static void inbox_received_handler(DictionaryIterator *iter, void *context) {
 
 static void tick_handler(struct tm *tick_time, TimeUnits units_changed) {
   update_time();
-  update_info_text();
-  // Redraw glucose dimming/graph position once data crosses staleness
-  layer_mark_dirty(s_graph_layer);
-  layer_mark_dirty(s_trend_layer);
+  // Refresh glucose colour, graph and info line every minute: data may
+  // cross staleness, and the night threshold window switches on the clock
+  update_glucose_ui();
 }
 
 static TextLayer *make_text_layer(GRect frame, const char *font_key,
@@ -451,6 +497,11 @@ static void load_state(void) {
   s_state.units_mmol = 1;
   s_state.low_mgdl = 72;   // 4.0 mmol/L
   s_state.high_mgdl = 180; // 10.0 mmol/L
+  s_state.night_enabled = 0;
+  s_state.night_start_min = 0;       // midnight
+  s_state.night_end_min = 7 * 60;    // 07:00
+  s_state.night_low_mgdl = 72;
+  s_state.night_high_mgdl = 180;
   s_state.trend = 0;
 
   if (persist_exists(PERSIST_KEY_STATE)) {

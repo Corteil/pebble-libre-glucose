@@ -26,6 +26,9 @@ patient's LibreLink app. No extra hardware or third‑party uploader needed.
 * Colour-coded reading: green in range, red below the low threshold,
   yellow above the high threshold (colour Pebbles).
 * mmol/L or mg/dL, configurable low/high thresholds.
+* Optional timed “night” thresholds — e.g. drop the low alarm to 4.0
+  between midnight and 07:00. Colours, graph guide lines and vibration
+  alerts all follow whichever thresholds are active.
 * Dark (default) or light theme.
 * Optional vibration alert when crossing low (double pulse) or high
   (single pulse).
